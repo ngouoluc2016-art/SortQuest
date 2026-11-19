@@ -93,8 +93,29 @@ jobs:
             app/build/outputs/logs/
           if-no-files-found: ignore
 
-      - name: Créer une Release GitHub (sur tag v*)
-        if: startsWith(github.ref, 'refs/tags/v')
+      # Release GitHub : page de téléchargement directe (ouvrable depuis le téléphone)
+      - name: Publier la Release v1.0.0
+        if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: v1.0.0
+          name: SortQuest 1.0.0
+          target_commitish: ${{ github.sha }}
           files: dist/*.apk
+          body: |
+            **Installer :** télécharger `SortQuest-1.0.0.apk`, l'ouvrir sur le téléphone, autoriser l'installation depuis cette source.
+            Android 8.0 minimum. `SortQuest-1.0.0-debug.apk` = version de diagnostic.
+
+      # Copie des APK sur la branche "apk" (récupérable avec git, sans passer par le stockage des artefacts)
+      - name: Publier les APK sur la branche apk
+        if: github.event_name != 'pull_request'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdir -p /tmp/apk && cp dist/*.apk /tmp/apk/
+          git checkout --orphan apk
+          git rm -rq --cached . && git clean -fdq -e dist
+          cp /tmp/apk/*.apk .
+          git add *.apk
+          git commit -qm "APK ${GITHUB_SHA::7}"
+          git push -f origin apk
