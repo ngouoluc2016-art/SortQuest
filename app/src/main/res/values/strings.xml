@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SortQuest</string>
+    <string name="notif_channel_scan">Tâches de rangement</string>
+    <string name="notif_scan_title">SortQuest analyse ton stockage</string>
+    <string name="notif_autopilot_title">Auto-Pilot range tes téléchargements</string>
+</resources>

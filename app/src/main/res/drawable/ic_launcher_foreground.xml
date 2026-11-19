@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Premier plan : un dossier néon qui "avale" une carte de fichier, une coche de validation
+  et une étincelle de tri. Tout le dessin tient dans la zone sûre de 66 dp (21 à 87),
+  donc aucun recadrage quel que soit le masque du lanceur (cercle, goutte, carré arrondi).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Mise à l'échelle 80 % autour du centre : tout reste dans le cercle de sécurité (r = 33 dp) -->
+    <group android:pivotX="54" android:pivotY="54" android:scaleX="0.8" android:scaleY="0.8">
+
+    <!-- Dos du dossier, avec son onglet -->
+    <path
+        android:fillColor="#FF1C9E92"
+        android:pathData="M31,36h14.5a3,3 0,0 1,2.4 1.2l3.2,4.3h26.9a4,4 0,0 1,4 4v28a4,4 0,0 1,-4 4h-47a4,4 0,0 1,-4 -4v-33.5a4,4 0,0 1,4 -4z" />
+
+    <!-- Carte de fichier qui glisse dans le dossier (légèrement inclinée) -->
+    <path
+        android:fillColor="#FFE8EEF5"
+        android:pathData="M41.5,31.5l21.2,-3.6a2,2 0,0 1,2.3 1.6l4.1,24.3a2,2 0,0 1,-1.6 2.3l-21.2,3.6a2,2 0,0 1,-2.3 -1.6l-4.1,-24.3a2,2 0,0 1,1.6 -2.3z" />
+    <path
+        android:strokeColor="#FF8A97A8"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M47,38.5l13,-2.2M48,44.5l13,-2.2M49,50.5l8,-1.4" />
+
+    <!-- Rabat avant du dossier : dégradé cyan -> magenta -->
+    <path android:pathData="M27,52.5a4,4 0,0 1,4 -4.5h47a4,4 0,0 1,4 4.5l-2.6,21.5a4,4 0,0 1,-4 3.5h-41.8a4,4 0,0 1,-4 -3.5z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="27"
+                android:startY="48"
+                android:endX="82"
+                android:endY="78">
+                <item android:offset="0" android:color="#FF3DF5E0" />
+                <item android:offset="1" android:color="#FFFF4FD8" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- Coche de validation sur le rabat -->
+    <path
+        android:strokeColor="#FF0B0F14"
+        android:strokeWidth="4.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:pathData="M45.5,62.5l6.5,6.5l12.5,-12.5" />
+
+    <!-- Étincelle de tri (étoile à 4 branches) + petite étincelle -->
+    <path
+        android:fillColor="#FFB6FF3B"
+        android:pathData="M76,22.5Q77.3,30 84.5,31.2Q77.3,32.4 76,40Q74.7,32.4 67.5,31.2Q74.7,30 76,22.5z" />
+    <path
+        android:fillColor="#FFB6FF3B"
+        android:pathData="M64.5,20.5Q65.1,23.4 68,24Q65.1,24.6 64.5,27.5Q63.9,24.6 61,24Q63.9,23.4 64.5,20.5z" />
+    </group>
+</vector>
