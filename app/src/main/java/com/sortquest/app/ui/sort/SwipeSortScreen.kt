@@ -29,6 +29,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -153,10 +156,8 @@ fun SwipeSortScreen(
         contentWindowInsets = WindowInsets(0, 0, 0, 0), // insets gérés par le Scaffold racine
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
-        Column(
-            Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
+        // Tableau de bord, identique en portrait et en paysage
+        val dashboard: @Composable (Modifier) -> Unit = { m ->
             DashboardHeader(
                 progress = state.progress,
                 storage = state.storage,
@@ -166,9 +167,13 @@ fun SwipeSortScreen(
                 onStartExpress = viewModel::startExpressSession,
                 onOpenRules = onOpenRules,
                 onOpenSettings = onOpenSettings,
+                modifier = m,
             )
+        }
 
-            BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
+        // Zone des cartes (pile, cibles du Fly-to-Folder, barre d'actions)
+        val cardArea: @Composable (Modifier) -> Unit = { areaModifier ->
+            BoxWithConstraints(areaModifier) {
                 val density = LocalDensity.current
                 val widthPx = with(density) { maxWidth.toPx() }
                 val heightPx = with(density) { maxHeight.toPx() }
@@ -258,6 +263,23 @@ fun SwipeSortScreen(
                         },
                         modifier = Modifier.align(Alignment.BottomCenter),
                     )
+                }
+            }
+        }
+
+        // Disposition adaptative : paysage = tableau de bord à gauche, cartes à droite
+        BoxWithConstraints(Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp, vertical = 8.dp)) {
+            if (maxWidth > maxHeight) {
+                Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Column(Modifier.weight(0.45f).fillMaxHeight().verticalScroll(rememberScrollState())) {
+                        dashboard(Modifier)
+                    }
+                    cardArea(Modifier.weight(0.55f).fillMaxHeight())
+                }
+            } else {
+                Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    dashboard(Modifier)
+                    cardArea(Modifier.fillMaxWidth().weight(1f))
                 }
             }
         }

@@ -4,6 +4,7 @@ import com.sortquest.app.domain.gamification.GameEvent
 import com.sortquest.app.domain.model.DuplicateGroup
 import com.sortquest.app.domain.model.DuplicateScanProgress
 import com.sortquest.app.domain.model.FileItem
+import com.sortquest.app.domain.model.KeepPreference
 import com.sortquest.app.domain.model.PurgeResult
 import com.sortquest.app.domain.model.SwipeDirection
 import com.sortquest.app.domain.model.TrashItem
@@ -67,7 +68,7 @@ class DuplicateScannerUseCase @Inject constructor(
                 }.groupBy { it.contentHash!! }.values.filter { it.size > 1 }
 
                 for (identical in byFull) {
-                    val copies = identical.sortedBy { it.lastModified }.drop(1) // le plus ancien = original
+                    val copies = identical.sortedWith(KeepPreference).drop(1) // exemplaire rangé ou plus ancien = gardé
                     copyIds += copies.map { it.id }
                     reclaimable += size * copies.size
                 }

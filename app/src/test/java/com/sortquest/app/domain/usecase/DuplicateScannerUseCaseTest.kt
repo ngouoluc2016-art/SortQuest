@@ -102,6 +102,14 @@ class DuplicateScannerUseCaseTest {
         assertEquals(setOf("/a/photo.jpg", "/b/photo (copie).jpg"), hasher.fullCalls.toSet())
     }
 
+    @Test fun `l'exemplaire deja range est garde, meme s'il est plus recent`() = runBlocking {
+        // Cas réel vu sur émulateur : l'utilisateur classe une photo, sa copie reste dans Download
+        val sortedCopy = files.take(2).let { (a, b) -> listOf(a, b.copy(status = FileStatus.SORTED)) }
+        val repo = FakeRepo(sortedCopy)
+        DuplicateScannerUseCase(repo, CountingHasher(contents))().toList()
+        assertEquals(listOf(1L), repo.marked) // la copie NON rangée est proposée à la suppression
+    }
+
     @Test fun `petit fichier - pas de hash complet, l'empreinte partielle couvre tout`() = runBlocking {
         val small = files.take(2).map { it.copy(sizeBytes = 1_000) }
         val hasher = CountingHasher(contents)

@@ -53,7 +53,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           cp -r smoke-out /tmp/smoke-out
           git checkout --orphan smoke
-          git rm -rq --cached . && git clean -fdq
+          git rm -rq --cached . && git clean -fdxq
           cp -r /tmp/smoke-out/. .
           git add -A
           git commit -qm "Smoke test ${GITHUB_SHA::7}"

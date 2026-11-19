@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -131,6 +132,11 @@ class SwipeSortViewModel @Inject constructor(
         viewModelScope.launch {
             refreshStorage()
             if (fileRepository.observePendingCount().first() == 0) rescan()
+        }
+        // La jauge "Santé du stockage" suit le nombre de fichiers à trier : sans cela, elle restait
+        // figée sur la valeur lue AVANT la fin du premier scan (constaté sur émulateur : 94 % au lieu de ~40 %).
+        viewModelScope.launch {
+            fileRepository.observePendingCount().distinctUntilChanged().collect { refreshStorage() }
         }
     }
 

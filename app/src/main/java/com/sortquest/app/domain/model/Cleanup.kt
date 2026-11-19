@@ -2,11 +2,23 @@ package com.sortquest.app.domain.model
 
 import kotlin.math.ceil
 
+/**
+ * Ordre de préférence de l'exemplaire à GARDER parmi des doublons :
+ *  1. celui que l'utilisateur a déjà rangé (classé ou coffre-fort) : il est à sa place ;
+ *  2. sinon le plus ancien (l'original le plus probable) ;
+ *  3. à égalité, ordre d'indexation (résultat stable).
+ */
+val KeepPreference: Comparator<FileItem> = compareBy<FileItem>(
+    { if (it.status == FileStatus.SORTED || it.status == FileStatus.VAULTED) 0 else 1 },
+    { it.lastModified },
+    { it.id },
+)
+
 /** Groupe de fichiers au contenu strictement identique (même SHA-256). */
 data class DuplicateGroup(
     val hash: String,
     val sizeBytes: Long,
-    /** Triés du plus ancien au plus récent : le premier est l'original proposé par défaut. */
+    /** Triés selon [KeepPreference] : le premier est l'exemplaire proposé à la conservation. */
     val files: List<FileItem>,
 ) {
     val copies: Int get() = files.size - 1

@@ -73,6 +73,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.sortquest.app.domain.model.Badge
 import com.sortquest.app.domain.model.StorageStats
@@ -133,22 +134,24 @@ fun DashboardHeader(
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     LevelPill(progress.level.number)
-                    Spacer(Modifier.size(8.dp))
-                    // Le titre glisse quand le niveau change
-                    AnimatedContent(
-                        targetState = progress.level.title,
-                        transitionSpec = { (slideInVertically { it } + fadeIn()) togetherWith (slideOutVertically { -it } + fadeOut()) },
-                        label = "levelTitle",
-                        modifier = Modifier.weight(1f),
-                    ) { title ->
-                        Text(title, style = MaterialTheme.typography.titleMedium, color = Neon.TextPrimary, maxLines = 1)
-                    }
+                    Spacer(Modifier.weight(1f))
                     IconButton(onClick = onOpenRules, modifier = Modifier.size(32.dp)) {
                         Icon(Icons.Rounded.Tune, contentDescription = "Règles et Auto-Pilot", tint = Neon.TextMuted)
                     }
                     IconButton(onClick = onOpenSettings, modifier = Modifier.size(32.dp)) {
                         Icon(Icons.Rounded.Settings, contentDescription = "Paramètres", tint = Neon.TextMuted)
                     }
+                }
+                // Titre sur sa propre ligne : "Novice du Rangement" n'est plus tronqué
+                AnimatedContent(
+                    targetState = progress.level.title,
+                    transitionSpec = { (slideInVertically { it } + fadeIn()) togetherWith (slideOutVertically { -it } + fadeOut()) },
+                    label = "levelTitle",
+                ) { title ->
+                    Text(
+                        title, style = MaterialTheme.typography.titleMedium, color = Neon.TextPrimary,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    )
                 }
                 XpBar(progress.levelProgress, Modifier.fillMaxWidth().height(10.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {

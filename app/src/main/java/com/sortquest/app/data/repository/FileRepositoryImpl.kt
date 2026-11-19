@@ -22,6 +22,7 @@ import com.sortquest.app.domain.model.DuplicateGroup
 import com.sortquest.app.domain.model.FileItem
 import com.sortquest.app.domain.model.FileStatus
 import com.sortquest.app.domain.model.HistoryEntry
+import com.sortquest.app.domain.model.KeepPreference
 import com.sortquest.app.domain.model.ScanPhase
 import com.sortquest.app.domain.model.ScanProgress
 import com.sortquest.app.domain.model.SortRecord
@@ -295,7 +296,7 @@ class FileRepositoryImpl @Inject constructor(
                     DuplicateGroup(
                         hash = hash,
                         sizeBytes = group.first().sizeBytes,
-                        files = group.sortedBy { it.lastModified }.map { it.toDomain() },
+                        files = group.map { it.toDomain() }.sortedWith(KeepPreference),
                     )
                 }
                 .sortedByDescending { it.reclaimableBytes }

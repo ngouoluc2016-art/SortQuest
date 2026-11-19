@@ -39,12 +39,26 @@ adb shell am start -W -n "$PKG/.MainActivity"   # retour : ON_RESUME détecte l'
 shot 04-tri-scan-en-cours 4
 shot 05-tri-cartes 20                              # laisse le scan + la recherche de doublons se terminer
 
-step "Swipe à droite (classer) puis à gauche (corbeille)"
-CY=$((H * 55 / 100))
+# Ferme une fenêtre de dialogue (ex. félicitations) comme le ferait l'utilisateur avec "Retour"
+close_dialog() {
+  if ! adb shell dumpsys window | grep -m1 mCurrentFocus | grep -q "MainActivity"; then
+    echo "fenêtre de dialogue détectée : fermeture"; adb shell input keyevent KEYCODE_BACK; sleep 1
+  fi
+}
+
+step "Swipe à droite (classer)"
+CY=$((H * 60 / 100))
 adb shell input swipe $((W / 2)) "$CY" $((W * 95 / 100)) "$CY" 220
 shot 06-apres-classement 3
+close_dialog
+step "Swipe à gauche (corbeille)"
 adb shell input swipe $((W / 2)) "$CY" $((W * 5 / 100)) "$CY" 220
 shot 07-apres-corbeille 3
+close_dialog
+step "Swipe vers le haut (coffre-fort)"
+adb shell input swipe $((W / 2)) "$CY" $((W / 2)) $((H * 20 / 100)) 220
+shot 07b-apres-coffre 3
+close_dialog
 
 step "Navigation dans les onglets (barre inférieure)"
 NAV_Y=$((H - $(dp 56)))
@@ -62,7 +76,7 @@ adb shell settings put system user_rotation 0
 shot 13-portrait 3
 
 step "Vérification de l'état des fichiers sur le disque"
-adb shell "ls -la /sdcard/Download/ /sdcard/Documents/SortQuest/ 2>&1; find /sdcard/Documents/SortQuest /sdcard/.SortQuest_Trash -type f 2>/dev/null" | tee "$OUT/fichiers.txt"
+adb shell "echo '--- Download'; ls /sdcard/Download/; echo '--- Rangés / coffre / corbeille'; find /sdcard/Documents/SortQuest /sdcard/.SortQuest_Trash -type f 2>/dev/null" | tee "$OUT/fichiers.txt"
 
 step "Analyse du journal"
 adb logcat -d > "$OUT/logcat.txt"
