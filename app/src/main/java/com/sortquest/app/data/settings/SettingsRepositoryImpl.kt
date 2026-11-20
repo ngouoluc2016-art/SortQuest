@@ -19,7 +19,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /** Une seule instance de DataStore par fichier et par processus (exigence de la bibliothèque). */
-private val Context.settingsStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
+internal val Context.settingsStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
 /** DataStore : écritures transactionnelles hors thread UI, lecture en Flow. */
 @Singleton

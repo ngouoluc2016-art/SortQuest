@@ -35,6 +35,28 @@ data class FileEntity(
     val status: FileStatus = FileStatus.PENDING,
     val skippedUntil: Long = 0,
     val scannedAt: Long,
+    /** Destination lisible proposée (v4), ex. "Factures". Null pour les lignes antérieures à la v4. */
+    val suggestedLabel: String? = null,
+    /** Nom d'une constante FolderIcon (v4). */
+    val suggestedIcon: String? = null,
+)
+
+/** Dossier de la gamme thématique (v4). Les listes sont stockées en CSV. */
+@Entity(tableName = "thematic_folders")
+data class ThematicFolderEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    val description: String,
+    val relativePath: String,
+    val icon: String,
+    val keywordsCsv: String,
+    val extensionsCsv: String,
+    val kindsCsv: String,
+    val enabled: Boolean,
+    val builtIn: Boolean,
+    val locked: Boolean,
+    val splitByYear: Boolean,
+    val sortOrder: Int,
 )
 
 /**

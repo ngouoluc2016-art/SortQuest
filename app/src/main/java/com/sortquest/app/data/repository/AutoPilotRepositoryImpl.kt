@@ -18,6 +18,7 @@ import com.sortquest.app.domain.model.AutoPilotProgress
 import com.sortquest.app.domain.model.FileNameNormalizer
 import com.sortquest.app.domain.model.FileStatus
 import com.sortquest.app.domain.model.SortRule
+import com.sortquest.app.domain.organization.ProtectedFilesPolicy
 import com.sortquest.app.domain.repository.AutoPilotRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
@@ -100,11 +101,17 @@ class AutoPilotRepositoryImpl @Inject constructor(
         emit(progress.copy(currentFile = null, done = true))
     }.flowOn(io)
 
-    private fun listCandidates(): List<File> =
-        StoragePaths.downloadsDir.listFiles()
-            ?.filter { it.isFile && !it.isHidden && it.length() > 0 && !isPartialDownload(it) }
+    private fun listCandidates(): List<File> {
+        val now = System.currentTimeMillis()
+        return StoragePaths.downloadsDir.listFiles()
+            ?.filter {
+                it.isFile && !isPartialDownload(it) &&
+                    // Même politique que le scan : caché, technique, en cours d'écriture -> ignoré
+                    !ProtectedFilesPolicy.isProtected(StoragePaths.relative(it), it.length(), now - it.lastModified())
+            }
             ?.sortedBy { it.lastModified() }
             .orEmpty()
+    }
 
     /** Téléchargements en cours de Chrome / Firefox / Android : à ne surtout pas déplacer. */
     private fun isPartialDownload(f: File): Boolean {

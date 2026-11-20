@@ -3,10 +3,14 @@ package com.sortquest.app.data.mapper
 import com.sortquest.app.data.local.entity.AutoRuleEntity
 import com.sortquest.app.data.local.entity.FileEntity
 import com.sortquest.app.data.local.entity.SortHistoryEntity
+import com.sortquest.app.data.local.entity.ThematicFolderEntity
 import com.sortquest.app.data.local.entity.TrashEntity
 import com.sortquest.app.data.local.entity.UserProgressEntity
 import com.sortquest.app.domain.model.Badge
 import com.sortquest.app.domain.model.FileItem
+import com.sortquest.app.domain.model.FileKind
+import com.sortquest.app.domain.model.FolderIcon
+import com.sortquest.app.domain.model.ThematicFolder
 import com.sortquest.app.domain.model.HistoryEntry
 import com.sortquest.app.domain.model.Level
 import com.sortquest.app.domain.model.SortRecord
@@ -30,6 +34,40 @@ fun FileEntity.toDomain() = FileItem(
     status = status,
     partialHash = partialHash,
     contentHash = contentHash,
+    suggestedLabel = suggestedLabel,
+    suggestedIcon = suggestedIcon?.let { runCatching { FolderIcon.valueOf(it) }.getOrNull() },
+)
+
+fun ThematicFolderEntity.toDomain() = ThematicFolder(
+    id = id,
+    name = name,
+    description = description,
+    relativePath = relativePath,
+    icon = runCatching { FolderIcon.valueOf(icon) }.getOrDefault(FolderIcon.CUSTOM),
+    keywords = keywordsCsv.split(',').map { it.trim() }.filter { it.isNotEmpty() }.toSet(),
+    extensions = extensionsCsv.split(',').map { it.trim() }.filter { it.isNotEmpty() }.toSet(),
+    kinds = kindsCsv.split(',').mapNotNull { runCatching { FileKind.valueOf(it.trim()) }.getOrNull() }.toSet(),
+    enabled = enabled,
+    builtIn = builtIn,
+    locked = locked,
+    splitByYear = splitByYear,
+    sortOrder = sortOrder,
+)
+
+fun ThematicFolder.toEntity() = ThematicFolderEntity(
+    id = id,
+    name = name,
+    description = description,
+    relativePath = relativePath,
+    icon = icon.name,
+    keywordsCsv = keywords.joinToString(","),
+    extensionsCsv = extensions.joinToString(","),
+    kindsCsv = kinds.joinToString(",") { it.name },
+    enabled = enabled,
+    builtIn = builtIn,
+    locked = locked,
+    splitByYear = splitByYear,
+    sortOrder = sortOrder,
 )
 
 fun SortHistoryEntity.toDomain() = SortRecord(

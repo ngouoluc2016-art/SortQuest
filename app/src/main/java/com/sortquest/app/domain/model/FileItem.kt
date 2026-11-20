@@ -55,4 +55,7 @@ data class FileItem(
     val partialHash: String? = null,
     /** SHA-256 complet (null = non calculé ou périmé). */
     val contentHash: String? = null,
+    /** Nom lisible de la destination proposée, ex. "Factures" ou "Photos / 2026". */
+    val suggestedLabel: String? = null,
+    val suggestedIcon: FolderIcon? = null,
 )

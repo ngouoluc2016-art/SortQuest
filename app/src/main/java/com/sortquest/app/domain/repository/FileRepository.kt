@@ -14,6 +14,8 @@ interface FileRepository {
     fun indexStorage(): Flow<ScanProgress>
 
     fun observeQueue(limit: Int): Flow<List<FileItem>>
+    /** Tous les fichiers à trier (vue Organiser), triés par destination proposée puis par nom. */
+    fun observePendingFiles(): Flow<List<FileItem>>
     fun observePendingCount(): Flow<Int>
 
     /** Exécute une action de tri et la journalise. Garantit : pas d'écrasement, cohérence disque/base. */
@@ -21,6 +23,8 @@ interface FileRepository {
         item: FileItem,
         action: ActionType,
         customTargetDir: String? = null,
+        /** Identifiant commun d'un rangement groupé : permet de tout annuler d'un coup. */
+        batchId: String? = null,
     ): Result<SortRecord>
 
     suspend fun recordXp(historyId: Long, xp: Int)

@@ -10,6 +10,11 @@ import com.sortquest.app.data.file.SafeFileOperations
 import com.sortquest.app.data.file.StorageLock
 import com.sortquest.app.data.file.StoragePaths
 import com.sortquest.app.data.local.AppDatabase
+import com.sortquest.app.data.organization.OrganizationConfigSource
+import com.sortquest.app.data.organization.SuggestionRefresher
+import com.sortquest.app.data.settings.settingsStore
+import androidx.datastore.preferences.core.edit
+import com.sortquest.app.domain.organization.ProtectedFilesPolicy
 import com.sortquest.app.data.local.entity.FileEntity
 import com.sortquest.app.data.local.entity.SortHistoryEntity
 import com.sortquest.app.data.local.entity.TrashEntity
@@ -53,6 +58,8 @@ class FileRepositoryImpl @Inject constructor(
     private val categorizer: FileCategorizer,
     private val ops: SafeFileOperations,
     private val lock: StorageLock,
+    private val organizationConfig: OrganizationConfigSource,
+    private val suggestionRefresher: SuggestionRefresher,
     private val undoEngine: UndoEngine,
     private val mediaStore: MediaStoreNotifier,
     @IoDispatcher private val io: CoroutineDispatcher,
@@ -69,7 +76,8 @@ class FileRepositoryImpl @Inject constructor(
         if (!StoragePermissionHelper.hasAllFilesAccess(context)) {
             throw SecurityException("Accès au stockage non accordé")
         }
-        val rules = ruleDao.enabledRules().map { it.toDomain() }
+        val config = organizationConfig.current()
+        var protectedCount = 0
         val now = System.currentTimeMillis()
         val batch = ArrayList<FileEntity>(BATCH_SIZE)
         var scanned = 0
@@ -82,9 +90,14 @@ class FileRepositoryImpl @Inject constructor(
 
             for (file in walker) {
                 currentCoroutineContext().ensureActive()
-                if (!file.isFile || file.isHidden || file.length() == 0L) continue
+                if (!file.isFile) continue
+                // Fichiers cachés, système, techniques, en cours d'écriture : jamais indexés
+                if (ProtectedFilesPolicy.isProtected(StoragePaths.relative(file), file.length(), now - file.lastModified())) {
+                    protectedCount++
+                    continue
+                }
 
-                val result = categorizer.categorize(file, rules)
+                val result = categorizer.categorize(file, config)
                 batch += FileEntity(
                     path = file.absolutePath,
                     name = file.name,
@@ -94,8 +107,10 @@ class FileRepositoryImpl @Inject constructor(
                     lastModified = file.lastModified(),
                     kind = result.kind,
                     category = result.category,
-                    suggestedTargetDir = result.targetDir,
-                    matchedKeyword = result.matchedKeyword,
+                    suggestedTargetDir = result.placement.relativeDir,
+                    matchedKeyword = result.placement.matchedKeyword,
+                    suggestedLabel = result.placement.label,
+                    suggestedIcon = result.placement.icon.name,
                     scannedAt = now,
                 )
                 scanned++
@@ -110,6 +125,9 @@ class FileRepositoryImpl @Inject constructor(
         }
         if (batch.isNotEmpty()) fileDao.insertAll(batch.toList())
         removeVanishedEntries()
+        // Les fichiers déjà indexés suivent eux aussi la gamme et la réorganisation actuelles
+        suggestionRefresher.refreshAll()
+        context.settingsStore.edit { it[OrganizationConfigSource.PROTECTED_COUNT] = protectedCount }
         emit(ScanProgress(ScanPhase.WALKING, scanned))
     }.flowOn(io)
 
@@ -126,6 +144,9 @@ class FileRepositoryImpl @Inject constructor(
             .distinctUntilChanged()
 
     override fun observePendingCount(): Flow<Int> = fileDao.observePendingCount()
+
+    override fun observePendingFiles(): Flow<List<FileItem>> =
+        fileDao.observePendingFiles().map { list -> list.map { it.toDomain() } }
 
     override fun observeCanUndo(): Flow<Boolean> =
         historyDao.observeHasUndoable(undoWindowStart()).distinctUntilChanged()
@@ -149,6 +170,7 @@ class FileRepositoryImpl @Inject constructor(
         item: FileItem,
         action: ActionType,
         customTargetDir: String?,
+        batchId: String?,
     ): Result<SortRecord> = withContext(io) {
         lock.mutex.withLock {
             runCatching {
@@ -158,6 +180,13 @@ class FileRepositoryImpl @Inject constructor(
                     throw FileNotFoundException("Fichier introuvable : ${item.name}")
                 }
                 val now = System.currentTimeMillis()
+
+                // Garde-fou : même si une ancienne entrée existe en base, un fichier protégé ne bouge jamais
+                if (action != ActionType.SKIP) {
+                    ProtectedFilesPolicy.check(StoragePaths.relative(source), source.length())?.let { reason ->
+                        throw SecurityException("Fichier protégé, non déplacé : ${reason.label}")
+                    }
+                }
 
                 // 1. Disque
                 val moved: File? = when (action) {
@@ -183,6 +212,7 @@ class FileRepositoryImpl @Inject constructor(
                         sizeBytes = item.sizeBytes,
                         wasDuplicate = item.isDuplicate,
                         timestamp = now,
+                        batchId = batchId,
                     )
                     val historyId = db.withTransaction {
                         val (status, skippedUntil) = when (action) {

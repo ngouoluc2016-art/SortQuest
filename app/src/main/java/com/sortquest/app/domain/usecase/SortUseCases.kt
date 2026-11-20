@@ -59,9 +59,10 @@ class SortFileUseCase @Inject constructor(
         combo: Int,
         inExpressSession: Boolean,
         customTargetDir: String? = null,
+        batchId: String? = null,
     ): Result<SortOutcome> {
         val action = direction.toAction()
-        return fileRepository.applyAction(item, action, customTargetDir).mapCatching { record ->
+        return fileRepository.applyAction(item, action, customTargetDir, batchId).mapCatching { record ->
             val reward = progressRepository.apply(
                 GameEvent.FileSorted(action, item.sizeBytes, item.isDuplicate, combo, inExpressSession)
             )

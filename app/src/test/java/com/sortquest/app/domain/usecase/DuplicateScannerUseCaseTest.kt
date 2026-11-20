@@ -64,8 +64,9 @@ class DuplicateScannerUseCaseTest {
         // Non utilisées par le scanner
         override fun indexStorage(): Flow<ScanProgress> = emptyFlow()
         override fun observeQueue(limit: Int): Flow<List<FileItem>> = emptyFlow()
+        override fun observePendingFiles(): Flow<List<FileItem>> = emptyFlow()
         override fun observePendingCount(): Flow<Int> = emptyFlow()
-        override suspend fun applyAction(item: FileItem, action: ActionType, customTargetDir: String?): Result<SortRecord> = error("inutilisé")
+        override suspend fun applyAction(item: FileItem, action: ActionType, customTargetDir: String?, batchId: String?): Result<SortRecord> = error("inutilisé")
         override suspend fun recordXp(historyId: Long, xp: Int) = Unit
         override fun observeCanUndo(): Flow<Boolean> = emptyFlow()
         override fun observeHistory(limit: Int): Flow<List<HistoryEntry>> = emptyFlow()

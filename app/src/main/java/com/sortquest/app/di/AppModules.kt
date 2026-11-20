@@ -5,6 +5,7 @@ import androidx.room.Room
 import androidx.work.WorkManager
 import com.sortquest.app.data.file.Sha256FileHasher
 import com.sortquest.app.data.local.AppDatabase
+import com.sortquest.app.data.organization.OrganizationRepositoryImpl
 import com.sortquest.app.data.local.dao.UserProgressDao
 import com.sortquest.app.data.repository.AutoPilotRepositoryImpl
 import com.sortquest.app.data.repository.FileRepositoryImpl
@@ -15,6 +16,7 @@ import com.sortquest.app.data.settings.SettingsRepositoryImpl
 import com.sortquest.app.domain.repository.AutoPilotRepository
 import com.sortquest.app.domain.repository.FileHasher
 import com.sortquest.app.domain.repository.FileRepository
+import com.sortquest.app.domain.repository.OrganizationRepository
 import com.sortquest.app.domain.repository.ProgressRepository
 import com.sortquest.app.domain.repository.RuleRepository
 import com.sortquest.app.domain.repository.SettingsRepository
@@ -35,8 +37,10 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
         Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.NAME)
-            // v1/v2 jamais publiées : on repart de zéro. NE PAS étendre après la 1re publication.
+            // v1/v2 jamais publiées : on repart de zéro. À partir de la v3 (APK 1.0.0 installé
+            // par l'utilisateur), chaque évolution de schéma passe par une migration explicite.
             .fallbackToDestructiveMigrationFrom(1, 2)
+            .addMigrations(AppDatabase.MIGRATION_3_4)
             .build()
 
     @Provides
@@ -72,4 +76,7 @@ abstract class RepositoryModule {
 
     @Binds @Singleton
     abstract fun bindSettingsRepository(impl: SettingsRepositoryImpl): SettingsRepository
+
+    @Binds @Singleton
+    abstract fun bindOrganizationRepository(impl: OrganizationRepositoryImpl): OrganizationRepository
 }
