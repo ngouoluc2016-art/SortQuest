@@ -39,12 +39,9 @@ adb shell am start -W -n "$PKG/.MainActivity"   # retour : ON_RESUME détecte l'
 shot 04-tri-scan-en-cours 4
 shot 05-tri-cartes 20                              # laisse le scan + la recherche de doublons se terminer
 
-# Ferme une fenêtre de dialogue (ex. félicitations) comme le ferait l'utilisateur avec "Retour"
-close_dialog() {
-  if ! adb shell dumpsys window | grep -m1 mCurrentFocus | grep -q "MainActivity"; then
-    echo "fenêtre de dialogue détectée : fermeture"; adb shell input keyevent KEYCODE_BACK; sleep 1
-  fi
-}
+# Ferme une éventuelle fenêtre de félicitations en touchant en dehors de sa carte.
+# Sans fenêtre ouverte, ce point tombe sur une zone inerte du tableau de bord : aucun effet.
+close_dialog() { adb shell input tap $((W / 2)) $((H * 8 / 100)); sleep 1; }
 
 step "Swipe à droite (classer)"
 CY=$((H * 60 / 100))

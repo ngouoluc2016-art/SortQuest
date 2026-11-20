@@ -4,6 +4,8 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -99,13 +101,23 @@ private fun CelebrationDialog(celebration: Celebration, onDismiss: () -> Unit) {
     }
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        // Toucher en dehors de la carte = fermer (geste attendu par l'utilisateur)
+        Box(
+            Modifier.fillMaxSize().clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onDismiss,
+            ),
+            contentAlignment = Alignment.Center,
+        ) {
             ConfettiOverlay(trigger = celebration, modifier = Modifier.fillMaxSize(), style = ConfettiStyle.RAIN)
             Column(
                 Modifier
                     .padding(28.dp)
                     .fillMaxWidth()
                     .graphicsLayer { scaleX = scale.value; scaleY = scale.value }
+                    // la carte absorbe ses propres touchers : seul l'extérieur ferme la fenêtre
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {}
                     .background(Neon.Surface, RoundedCornerShape(28.dp))
                     .border(2.dp, Brush.linearGradient(listOf(Neon.Cyan, Neon.Magenta)), RoundedCornerShape(28.dp))
                     .padding(24.dp),
