@@ -1,0 +1,3 @@
+Processus vivant : 4797
+Éléments introuvables : 1
+AUCUN CRASH - parcours complet réussi

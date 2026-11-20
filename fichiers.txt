@@ -1,0 +1,13 @@
+--- Download
+.releve_secret.pdf
+cache_appli.db
+--- Rangés
+/sdcard/Documents/SortQuest/Photos/2026/IMG_20260712_vacances (1).jpg
+/sdcard/Documents/SortQuest/Photos/2026/IMG_20260712_vacances.jpg
+/sdcard/Documents/SortQuest/Archives/archives_photos_2024.zip
+/sdcard/Documents/SortQuest/Captures d'ecran/2026/Screenshot_20261102.jpg
+/sdcard/Documents/SortQuest/Administratif/Contrats et assurances/Contrat_assurance_habitation.pdf
+/sdcard/Documents/SortQuest/Administratif/Factures/Facture_EDF_octobre_2026.pdf
+/sdcard/Documents/SortQuest/Administratif/Travail/bulletin_de_paie_septembre.pdf
+/sdcard/Documents/SortQuest/Documents/notes_reunion.txt
+--- Corbeille
