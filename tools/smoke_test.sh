@@ -44,7 +44,12 @@ grant() { adb shell appops set --uid "$PKG" MANAGE_EXTERNAL_STORAGE allow; }
 launch() { adb shell am start -W -n "$PKG/.MainActivity" > /dev/null; }
 
 echo "Écran ${W}x${H}, densité ${DENSITY}"
-for f in tools/fixtures/* tools/fixtures/.[!.]*; do adb push "$f" "/sdcard/Download/" > /dev/null; done
+# Attendre que le stockage partagé soit monté, puis copier les fichiers de test un par un
+for _ in $(seq 1 30); do adb shell "mkdir -p /sdcard/Download && touch /sdcard/Download/.probe && rm /sdcard/Download/.probe" 2>/dev/null && break; sleep 2; done
+for f in tools/fixtures/* tools/fixtures/.[!.]*; do
+  adb push "$f" "/sdcard/Download/$(basename "$f")" > /dev/null || { echo "COPIE IMPOSSIBLE : $f"; exit 5; }
+done
+adb shell ls -a /sdcard/Download/
 adb logcat -c
 
 if [ -n "$OLD_APK" ] && [ -f "$OLD_APK" ]; then
