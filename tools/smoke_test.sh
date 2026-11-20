@@ -22,6 +22,7 @@ tab() { adb shell input tap $(( W * (2 * $1 + 1) / 8 )) "$NAV_Y"; }   # 0 Organi
 # Touche un élément par son texte (arbre d'accessibilité), 3 essais
 tap_text() {
   local mode=${2:-exact}
+  dismiss
   for _ in 1 2 3; do
     if adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1 && adb pull /sdcard/ui.xml /tmp/ui.xml > /dev/null 2>&1; then
       if coords=$(python3 tools/find_node.py /tmp/ui.xml "$1" "$mode"); then
@@ -36,7 +37,9 @@ tap_text() {
 dismiss() {
   for _ in 1 2 3; do
     adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1 && adb pull /sdcard/ui.xml /tmp/ui.xml > /dev/null 2>&1 || return 0
-    coords=$(python3 tools/find_node.py /tmp/ui.xml "Continuer") || return 0
+    coords=$(python3 tools/find_node.py /tmp/ui.xml "Continuer") \
+      || coords=$(python3 tools/find_node.py /tmp/ui.xml "Wait") \
+      || coords=$(python3 tools/find_node.py /tmp/ui.xml "Attendre") || return 0
     adb shell input tap $coords; echo "fenêtre fermée"; sleep 1.5
   done
 }
@@ -44,6 +47,7 @@ grant() { adb shell appops set --uid "$PKG" MANAGE_EXTERNAL_STORAGE allow; }
 launch() { adb shell am start -W -n "$PKG/.MainActivity" > /dev/null; }
 
 echo "Écran ${W}x${H}, densité ${DENSITY}"
+adb shell settings put global hide_error_dialogs 1   # pas de fenêtres « ne répond pas » de l'émulateur
 # Attendre que le stockage partagé soit monté, puis copier les fichiers de test un par un
 for _ in $(seq 1 30); do adb shell "mkdir -p /sdcard/Download && touch /sdcard/Download/.probe && rm /sdcard/Download/.probe" 2>/dev/null && break; sleep 2; done
 for f in tools/fixtures/* tools/fixtures/.[!.]*; do
@@ -80,6 +84,8 @@ shot 03-organiser 20
 dismiss
 step "Fichiers cachés / protégés : ne doivent PAS apparaître"
 adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1; adb pull /sdcard/ui.xml /tmp/ui.xml > /dev/null 2>&1
+# 10 fichiers déposés - 1 caché - 1 base de données = 8 attendus dans « À trier »
+if python3 tools/find_node.py /tmp/ui.xml "À trier (8)" > /dev/null; then echo "OK : 8 fichiers à trier"; else echo "ERREUR : compteur différent de 8"; MISSING=$((MISSING + 1)); fi
 for hidden in ".releve_secret.pdf" "cache_appli.db"; do
   if python3 tools/find_node.py /tmp/ui.xml "$hidden" > /dev/null; then echo "ERREUR : $hidden affiché"; MISSING=$((MISSING + 1)); else echo "OK : $hidden masqué"; fi
 done

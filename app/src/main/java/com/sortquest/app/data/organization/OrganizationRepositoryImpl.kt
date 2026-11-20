@@ -65,8 +65,15 @@ class SuggestionRefresher @Inject constructor(
     suspend fun refreshAll(): Int {
         val cfg = config.current()
         val fileDao = db.fileDao()
-        val pending = fileDao.pendingFiles()
+        val all = fileDao.pendingFiles()
+        // Index hérité d'une version antérieure (ex. 1.0.0) : les fichiers devenus protégés
+        // (cachés, système, techniques) sortent de l'index. Seule la ligne d'index est supprimée,
+        // jamais le fichier lui-même.
+        val (protectedEntries, pending) = all.partition {
+            ProtectedFilesPolicy.isProtected(StoragePaths.relative(File(it.path)), it.sizeBytes)
+        }
         db.withTransaction {
+            protectedEntries.map { it.id }.chunked(500).forEach { fileDao.deleteByIds(it) }
             pending.forEach { e ->
                 val r = categorizer.categorize(e.name, e.sizeBytes, e.lastModified, File(e.path).parentFile?.name.orEmpty(), cfg)
                 fileDao.updateSuggestion(e.id, r.placement.relativeDir, r.placement.label, r.placement.icon.name, r.category, r.placement.matchedKeyword)
