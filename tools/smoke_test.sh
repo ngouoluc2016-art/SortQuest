@@ -93,7 +93,7 @@ for hidden in ".releve_secret.pdf" "cache_appli.db"; do
 done
 
 step "Consulter un fichier AVANT déplacement (recherche puis ouverture)"
-tap_text "Rechercher un fichier ou un dossier" && { adb shell input text "Facture"; sleep 2; adb shell input keyevent KEYCODE_ESCAPE; sleep 1; }
+tap_text "Rechercher un fichier ou un dossier" && { for c in F a c t u r e; do adb shell input text "$c"; sleep 0.4; done; sleep 2; adb shell input keyevent KEYCODE_ESCAPE; sleep 1; }
 tap_text "Facture_EDF_octobre_2026.pdf" && { shot 04-visionneuse-pdf-avant 4; back; }
 shot 04b-recherche 1
 tap_text "Effacer" || true   # vide la recherche (bouton du champ)
@@ -105,7 +105,8 @@ step "Gamme de dossiers thématiques"
 tap_text "Dossiers" && { shot 06-dossiers-thematiques 3; back; }
 
 step "Tout ranger (plan visuel puis confirmation)"
-tap_text "Tout ranger" prefix && { shot 07-confirmation-plan 2; tap_text "Ranger"; shot 08-apres-rangement 4; dismiss; }
+# bouton flottant : par son texte, sinon par sa position (en bas à droite, au-dessus de la barre)
+{ tap_text "Tout ranger" prefix || { MISSING=$((MISSING - 1)); adb shell input tap $((W * 71 / 100)) $((H * 84 / 100)); echo "toucher bouton flottant (position)"; }; } && { shot 07-confirmation-plan 2; tap_text "Ranger"; shot 08-apres-rangement 4; dismiss; }
 
 step "Rangés : parcourir les dossiers puis consulter un fichier APRÈS déplacement"
 tap_text "Rangés"; shot 09-ranges 4
