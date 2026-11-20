@@ -16,8 +16,6 @@ dp() { echo $(( $1 * DENSITY / 160 )); }
 shot() { sleep "${2:-2}"; adb exec-out screencap -p > "$OUT/$1.png"; echo "capture $1"; }
 step() { echo; echo "=== $*"; }
 back() { adb shell input keyevent KEYCODE_BACK; sleep 1.5; }
-NAV_Y=$((H - $(dp 56)))
-tab() { adb shell input tap $(( W * (2 * $1 + 1) / 8 )) "$NAV_Y"; }   # 0 Organiser, 1 Trier, 2 Optimiser, 3 Auto-Pilot
 
 # Touche un élément par son texte (arbre d'accessibilité), 3 essais
 tap_text() {
@@ -80,9 +78,10 @@ else
 fi
 
 dismiss
-step "Organiser : relance d'une analyse pour indexer tous les fichiers de test"
-tap_text "Analyser le stockage" || true
-shot 03-organiser 20
+step "Accueil épuré : tuiles d'activités"
+shot 03-accueil 8
+tap_text "Organiser"
+shot 03b-organiser 6
 dismiss
 step "Fichiers cachés / protégés : ne doivent PAS apparaître"
 adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1; adb pull /sdcard/ui.xml /tmp/ui.xml > /dev/null 2>&1
@@ -96,7 +95,7 @@ step "Consulter un fichier AVANT déplacement (recherche puis ouverture)"
 tap_text "Rechercher un fichier ou un dossier" && { for c in F a c t u r e; do adb shell input text "$c"; sleep 0.4; done; sleep 2; adb shell input keyevent KEYCODE_ESCAPE; sleep 1; }
 tap_text "Facture_EDF_octobre_2026.pdf" && { shot 04-visionneuse-pdf-avant 4; back; }
 shot 04b-recherche 1
-tap_text "Effacer" || true   # vide la recherche (bouton du champ)
+tap_text "Effacer" || true
 
 step "Choisir une réorganisation"
 tap_text "Réorganisation" && { shot 05-choix-reorganisation 2; back; sleep 2; }
@@ -105,27 +104,32 @@ step "Gamme de dossiers thématiques"
 tap_text "Dossiers" && { shot 06-dossiers-thematiques 3; back; }
 
 step "Tout ranger (plan visuel puis confirmation)"
-# bouton flottant : par son texte, sinon par sa position (en bas à droite, au-dessus de la barre)
-{ tap_text "Tout ranger" prefix || { MISSING=$((MISSING - 1)); adb shell input tap $((W * 71 / 100)) $((H * 84 / 100)); echo "toucher bouton flottant (position)"; }; } && { shot 07-confirmation-plan 2; tap_text "Ranger"; shot 08-apres-rangement 4; dismiss; }
+# bouton flottant : par son texte, sinon par sa position (en bas à droite)
+{ tap_text "Tout ranger" prefix || { MISSING=$((MISSING - 1)); adb shell input tap $((W * 71 / 100)) $((H * 90 / 100)); echo "toucher bouton flottant (position)"; }; } && { shot 07-confirmation-plan 2; tap_text "Ranger"; shot 08-apres-rangement 4; dismiss; }
 
-step "Rangés : parcourir les dossiers puis consulter un fichier APRÈS déplacement"
-tap_text "Rangés"; shot 09-ranges 4
-if tap_text "Administratif"; then
-  shot 10-dossier-administratif 3
-  if tap_text "Factures"; then
-    shot 11-dossier-factures 3
-    tap_text "Facture_EDF_octobre_2026.pdf" && { shot 12-visionneuse-pdf-apres 4; back; }
+step "Retour à l'accueil puis Mes dossiers : consulter un fichier APRÈS déplacement"
+back; shot 09-accueil-apres 3
+if tap_text "Mes dossiers"; then
+  shot 09b-mes-dossiers 3
+  if tap_text "Administratif"; then
+    shot 10-dossier-administratif 3
+    if tap_text "Factures"; then
+      shot 11-dossier-factures 3
+      tap_text "Facture_EDF_octobre_2026.pdf" && { shot 12-visionneuse-pdf-apres 4; back; }
+      back
+    fi
     back
   fi
   back
 fi
 
-step "Autres onglets"
-tab 1; shot 13-trier 4
-tab 2; shot 14-optimiser 5
-tab 3; shot 15-autopilot 3
-tap_text "Historique" && shot 16-historique 3
-tab 0; shot 17-retour-organiser 3
+step "Autres activités, chacune en plein écran"
+n=13
+for act in "Tri express" "Libérer de l'espace" "Corbeille" "Auto-Pilot" "Historique" "Dossiers thématiques"; do
+  if tap_text "$act"; then shot "$n-$(echo "$act" | tr " '" '__')" 4; back; fi
+  n=$((n + 1))
+done
+shot 19-retour-accueil 2
 
 step "État des fichiers sur le disque"
 adb shell "echo '--- Download'; ls -a /sdcard/Download/; echo '--- Rangés'; find /sdcard/Documents/SortQuest -type f; echo '--- Corbeille'; ls /sdcard/.SortQuest_Trash/ 2>/dev/null" | tee "$OUT/fichiers.txt"

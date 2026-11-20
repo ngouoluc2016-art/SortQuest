@@ -17,8 +17,8 @@ android {
         applicationId = "com.sortquest.app"
         minSdk = 26          // java.nio.file (Files.move atomique) disponible dès l'API 26
         targetSdk = 35       // Android 15
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = 3
+        versionName = "1.2.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
         // Langues : seules les ressources fr/en des bibliothèques sont embarquées (APK plus léger)

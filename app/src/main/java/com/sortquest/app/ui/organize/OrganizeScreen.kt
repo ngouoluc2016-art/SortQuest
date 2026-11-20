@@ -153,7 +153,7 @@ fun OrganizeScreen(
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            StorageOverview(state, formatBytes, onOpenOptimize)
+            // État du stockage : affiché sur l'accueil (écran d'activité épuré)
 
             // Réorganisation choisie + gamme de dossiers
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

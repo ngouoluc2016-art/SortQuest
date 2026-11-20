@@ -89,7 +89,7 @@ fun FolderContentScreen(
         TopAppBar(
             title = {
                 Column {
-                    Text(viewModel.relativeDir.substringAfterLast('/'), style = MaterialTheme.typography.titleMedium)
+                    Text(if (viewModel.relativeDir == com.sortquest.app.domain.organization.ThematicCatalog.BASE) "Mes dossiers" else viewModel.relativeDir.substringAfterLast('/'), style = MaterialTheme.typography.titleMedium)
                     Text(viewModel.relativeDir.removePrefix("Documents/"), style = MaterialTheme.typography.labelSmall, color = Neon.TextMuted,
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
