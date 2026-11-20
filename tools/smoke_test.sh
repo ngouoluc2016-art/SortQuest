@@ -31,7 +31,9 @@ tap_text() {
     fi
     sleep 2
   done
-  echo "ÉLÉMENT INTROUVABLE : « $1 »"; MISSING=$((MISSING + 1)); return 1
+  echo "ÉLÉMENT INTROUVABLE : « $1 »"; MISSING=$((MISSING + 1))
+  cp /tmp/ui.xml "$OUT/ui-introuvable-$MISSING.xml" 2>/dev/null; adb exec-out screencap -p > "$OUT/introuvable-$MISSING.png"
+  return 1
 }
 # Ferme les fenêtres de félicitation éventuelles (non compté comme échec)
 dismiss() {
@@ -90,11 +92,14 @@ for hidden in ".releve_secret.pdf" "cache_appli.db"; do
   if python3 tools/find_node.py /tmp/ui.xml "$hidden" > /dev/null; then echo "ERREUR : $hidden affiché"; MISSING=$((MISSING + 1)); else echo "OK : $hidden masqué"; fi
 done
 
-step "Consulter un fichier AVANT déplacement (PDF multipage)"
+step "Consulter un fichier AVANT déplacement (recherche puis ouverture)"
+tap_text "Rechercher un fichier ou un dossier" && { adb shell input text "Facture"; sleep 2; adb shell input keyevent KEYCODE_ESCAPE; sleep 1; }
 tap_text "Facture_EDF_octobre_2026.pdf" && { shot 04-visionneuse-pdf-avant 4; back; }
+shot 04b-recherche 1
+tap_text "Effacer" || true   # vide la recherche (bouton du champ)
 
 step "Choisir une réorganisation"
-tap_text "Réorganisation" && { shot 05-choix-reorganisation 2; back; }
+tap_text "Réorganisation" && { shot 05-choix-reorganisation 2; back; sleep 2; }
 
 step "Gamme de dossiers thématiques"
 tap_text "Dossiers" && { shot 06-dossiers-thematiques 3; back; }
