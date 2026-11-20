@@ -76,7 +76,7 @@ import java.util.Locale
 
 /** Onglet "Auto-Pilot" : sous-onglets Règles et Historique, snackbar partagé. */
 @Composable
-fun AutoPilotScreen() {
+fun AutoPilotScreen(onOpenFile: (String) -> Unit = {}) {
     val snackbar = remember { SnackbarHostState() }
     var tab by rememberSaveable { mutableIntStateOf(0) }
     Scaffold(
@@ -90,7 +90,7 @@ fun AutoPilotScreen() {
                 Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Historique") })
             }
             Box(Modifier.weight(1f)) {
-                if (tab == 0) RulesScreen(snackbar) else HistoryScreen(snackbar)
+                if (tab == 0) RulesScreen(snackbar) else HistoryScreen(snackbar, onOpenFile)
             }
         }
     }

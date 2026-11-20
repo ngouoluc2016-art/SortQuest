@@ -81,6 +81,29 @@ class TrashRepositoryImpl @Inject constructor(
         lock.mutex.withLock { purgeLocked(trashDao.all()) }
     }
 
+    override suspend fun adoptOrphans(): Int = withContext(io) {
+        lock.mutex.withLock {
+            val dir = StoragePaths.trashDir
+            val known = trashDao.all().map { it.trashPath }.toSet()
+            val now = System.currentTimeMillis()
+            val orphans = dir.listFiles().orEmpty().filter { it.isFile && it.name != ".nomedia" && it.absolutePath !in known }
+            orphans.forEach { f ->
+                trashDao.insert(
+                    TrashEntity(
+                        fileId = 0, // pas d'entrée d'index : restauration directe
+                        fileName = f.name,
+                        originalPath = File(StoragePaths.downloadsDir, f.name).absolutePath, // origine inconnue -> Download
+                        trashPath = f.absolutePath,
+                        sizeBytes = f.length(),
+                        trashedAt = now,
+                        expiresAt = now + FileRepositoryImpl.TRASH_RETENTION_MS,
+                    )
+                )
+            }
+            orphans.size
+        }
+    }
+
     override suspend fun purgeExpired(): PurgeResult = withContext(io) {
         lock.mutex.withLock { purgeLocked(trashDao.expired(System.currentTimeMillis())) }
     }

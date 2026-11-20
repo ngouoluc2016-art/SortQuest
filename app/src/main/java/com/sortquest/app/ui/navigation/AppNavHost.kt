@@ -4,7 +4,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoMode
 import androidx.compose.material.icons.rounded.CleaningServices
-import androidx.compose.material.icons.rounded.DeleteOutline
+import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.Style
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -36,13 +36,21 @@ import com.sortquest.app.core.permission.StoragePermissionHelper
 import com.sortquest.app.domain.repository.FileRepository
 import com.sortquest.app.domain.usecase.ObserveTrashUseCase
 import com.sortquest.app.ui.celebration.CelebrationHost
-import com.sortquest.app.ui.clean.CleanScreen
 import com.sortquest.app.ui.onboarding.OnboardingScreen
 import com.sortquest.app.ui.rules.AutoPilotScreen
+import com.sortquest.app.ui.optimize.OptimizeScreen
+import com.sortquest.app.ui.organize.FolderContentScreen
+import com.sortquest.app.ui.organize.OrganizeScreen
+import com.sortquest.app.ui.organize.ThematicFoldersScreen
+import com.sortquest.app.ui.viewer.FileViewerScreen
+import com.sortquest.app.domain.usecase.InitializeOrganizationUseCase
+import android.net.Uri
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
+import kotlinx.coroutines.launch
 import com.sortquest.app.ui.settings.SettingsScreen
 import com.sortquest.app.ui.sort.SwipeSortScreen
 import com.sortquest.app.ui.theme.Neon
-import com.sortquest.app.ui.trash.TrashScreen
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -53,14 +61,23 @@ import javax.inject.Inject
 object Routes {
     const val ONBOARDING = "onboarding"
     const val SETTINGS = "settings"
+    const val FOLDERS = "folders"
+    const val VIEWER = "viewer?path={path}"
+    const val FOLDER = "folder?dir={dir}"
+
+    fun viewer(path: String) = "viewer?path=" + Uri.encode(path)
+    fun folder(dir: String) = "folder?dir=" + Uri.encode(dir)
 }
 
-/** Les 4 écrans principaux, dans l'ordre de la barre de navigation. */
+/**
+ * Les 4 écrans principaux. Organisation et optimisation du stockage d'abord ;
+ * le tri par swipe reste disponible comme mode rapide et ludique.
+ */
 enum class TopLevelDestination(val route: String, val label: String, val icon: ImageVector) {
+    ORGANIZE("organize", "Organiser", Icons.Rounded.FolderOpen),
     SORT("sort", "Trier", Icons.Rounded.Style),
-    CLEAN("clean", "Nettoyer", Icons.Rounded.CleaningServices),
+    OPTIMIZE("optimize", "Optimiser", Icons.Rounded.CleaningServices),
     AUTOPILOT("autopilot", "Auto-Pilot", Icons.Rounded.AutoMode),
-    TRASH("trash", "Corbeille", Icons.Rounded.DeleteOutline),
 }
 
 data class NavBadges(val pending: Int = 0, val trash: Int = 0)
@@ -70,7 +87,13 @@ data class NavBadges(val pending: Int = 0, val trash: Int = 0)
 class MainViewModel @Inject constructor(
     fileRepository: FileRepository,
     observeTrash: ObserveTrashUseCase,
+    initializeOrganization: InitializeOrganizationUseCase,
 ) : ViewModel() {
+    init {
+        // Gamme de dossiers installée/complétée + destinations des fichiers déjà indexés alignées
+        viewModelScope.launch { runCatching { initializeOrganization() } }
+    }
+
     val badges: StateFlow<NavBadges> = combine(
         fileRepository.observePendingCount(),
         observeTrash(),
@@ -83,7 +106,7 @@ fun AppNavHost(mainViewModel: MainViewModel = hiltViewModel()) {
     val context = LocalContext.current
     val nav = rememberNavController()
     val start = remember {
-        if (StoragePermissionHelper.hasAllFilesAccess(context)) TopLevelDestination.SORT.route else Routes.ONBOARDING
+        if (StoragePermissionHelper.hasAllFilesAccess(context)) TopLevelDestination.ORGANIZE.route else Routes.ONBOARDING
     }
     val backStackEntry by nav.currentBackStackEntryAsState()
     val destination = backStackEntry?.destination
@@ -112,8 +135,8 @@ fun AppNavHost(mainViewModel: MainViewModel = hiltViewModel()) {
                         TopLevelDestination.entries.forEach { top ->
                             val selected = destination?.hierarchy?.any { it.route == top.route } == true
                             val count = when (top) {
-                                TopLevelDestination.SORT -> badges.pending
-                                TopLevelDestination.TRASH -> badges.trash
+                                TopLevelDestination.ORGANIZE -> badges.pending
+                                TopLevelDestination.OPTIMIZE -> badges.trash
                                 else -> 0
                             }
                             NavigationBarItem(
@@ -145,23 +168,49 @@ fun AppNavHost(mainViewModel: MainViewModel = hiltViewModel()) {
                     OnboardingScreen(onFinished = {
                         // Peut être appelé deux fois (retour des Paramètres + bouton) : on protège
                         if (nav.currentDestination?.route == Routes.ONBOARDING) {
-                            nav.navigate(TopLevelDestination.SORT.route) {
+                            nav.navigate(TopLevelDestination.ORGANIZE.route) {
                                 popUpTo(Routes.ONBOARDING) { inclusive = true }
                                 launchSingleTop = true
                             }
                         }
                     })
                 }
+                val openFile: (String) -> Unit = { path -> nav.navigate(Routes.viewer(path)) }
+                composable(TopLevelDestination.ORGANIZE.route) {
+                    OrganizeScreen(
+                        onOpenFile = openFile,
+                        onOpenFolders = { nav.navigate(Routes.FOLDERS) { launchSingleTop = true } },
+                        onOpenFolder = { dir -> nav.navigate(Routes.folder(dir)) },
+                        onOpenOptimize = { nav.navigateTopLevel(TopLevelDestination.OPTIMIZE) },
+                    )
+                }
                 composable(TopLevelDestination.SORT.route) {
                     SwipeSortScreen(
                         onOpenRules = { nav.navigateTopLevel(TopLevelDestination.AUTOPILOT) },
                         onOpenSettings = { nav.navigate(Routes.SETTINGS) { launchSingleTop = true } },
+                        onOpenFile = openFile,
                     )
                 }
-                composable(TopLevelDestination.CLEAN.route) { CleanScreen() }
-                composable(TopLevelDestination.AUTOPILOT.route) { AutoPilotScreen() }
-                composable(TopLevelDestination.TRASH.route) { TrashScreen() }
+                composable(TopLevelDestination.OPTIMIZE.route) { OptimizeScreen(onOpenFile = openFile) }
+                composable(TopLevelDestination.AUTOPILOT.route) { AutoPilotScreen(onOpenFile = openFile) }
                 composable(Routes.SETTINGS) { SettingsScreen(onBack = { nav.popBackStack() }) }
+                composable(Routes.FOLDERS) { ThematicFoldersScreen(onBack = { nav.popBackStack() }) }
+                composable(
+                    Routes.VIEWER,
+                    arguments = listOf(navArgument("path") { type = NavType.StringType; nullable = true }),
+                ) { entry ->
+                    FileViewerScreen(path = entry.arguments?.getString("path").orEmpty(), onBack = { nav.popBackStack() })
+                }
+                composable(
+                    Routes.FOLDER,
+                    arguments = listOf(navArgument("dir") { type = NavType.StringType; nullable = true }),
+                ) {
+                    FolderContentScreen(
+                        onBack = { nav.popBackStack() },
+                        onOpenFile = openFile,
+                        onOpenFolder = { dir -> nav.navigate(Routes.folder(dir)) },
+                    )
+                }
             }
         }
     }

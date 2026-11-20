@@ -50,13 +50,16 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.sortquest.app.domain.model.TrashItem
 import com.sortquest.app.ui.components.EmptyState
 import com.sortquest.app.ui.components.FileKindIcon
+import com.sortquest.app.ui.components.FileThumbnail
+import com.sortquest.app.domain.model.FileKinds
+import androidx.compose.foundation.clickable
 import com.sortquest.app.ui.components.ShimmerList
 import com.sortquest.app.ui.components.readableParent
 import com.sortquest.app.ui.components.rememberBytesFormatter
 import com.sortquest.app.ui.theme.Neon
 
 @Composable
-fun TrashScreen(viewModel: TrashViewModel = hiltViewModel()) {
+fun TrashScreen(onOpenFile: (String) -> Unit = {}, viewModel: TrashViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val formatBytes = rememberBytesFormatter()
@@ -125,6 +128,7 @@ fun TrashScreen(viewModel: TrashViewModel = hiltViewModel()) {
                         items(state.items, key = { it.id }) { item ->
                             TrashRow(
                                 item = item,
+                                onOpen = { onOpenFile(item.trashPath) },
                                 now = state.now,
                                 busy = item.id in state.busyIds || state.isEmptying,
                                 formatBytes = formatBytes,
@@ -170,6 +174,7 @@ fun TrashScreen(viewModel: TrashViewModel = hiltViewModel()) {
 @Composable
 private fun TrashRow(
     item: TrashItem,
+    onOpen: () -> Unit,
     now: Long,
     busy: Boolean,
     formatBytes: (Long) -> String,
@@ -184,11 +189,11 @@ private fun TrashRow(
         else -> Neon.Lime
     }
     Column(
-        modifier.fillMaxWidth().background(Neon.Surface, RoundedCornerShape(16.dp)).padding(12.dp),
+        modifier.fillMaxWidth().background(Neon.Surface, RoundedCornerShape(16.dp)).clickable(onClick = onOpen).padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            FileKindIcon(item.fileName.substringAfterLast('.', ""))
+            FileThumbnail(item.trashPath, FileKinds.fromExtension(item.fileName.substringAfterLast('.', "")), item.trashedAt, item.fileName.substringAfterLast('.', ""), size = 44.dp)
             Spacer(Modifier.size(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(item.fileName, style = MaterialTheme.typography.bodyMedium, color = Neon.TextPrimary,

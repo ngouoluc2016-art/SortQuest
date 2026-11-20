@@ -96,9 +96,13 @@ class ListFolderUseCase @Inject constructor(private val repo: OrganizationReposi
  * Au démarrage : installe les dossiers de la gamme manquants (nouvelle version incluse) et aligne
  * la destination proposée des fichiers déjà indexés sur la configuration actuelle.
  */
-class InitializeOrganizationUseCase @Inject constructor(private val repo: OrganizationRepository) {
+class InitializeOrganizationUseCase @Inject constructor(
+    private val repo: OrganizationRepository,
+    private val trashRepository: com.sortquest.app.domain.repository.TrashRepository,
+) {
     suspend operator fun invoke() {
         repo.ensureCatalog()
         repo.refreshSuggestions()
+        trashRepository.adoptOrphans() // corbeille retrouvée après une réinstallation
     }
 }

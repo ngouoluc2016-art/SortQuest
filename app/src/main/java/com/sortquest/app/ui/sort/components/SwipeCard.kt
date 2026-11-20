@@ -4,6 +4,7 @@ import android.text.format.Formatter
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -64,6 +65,8 @@ fun SwipeCard(
     onRelease: (SwipeDirection) -> Unit,
     onSwiped: (SwipeDirection) -> Unit,
     modifier: Modifier = Modifier,
+    /** Toucher la carte = consulter le fichier (visionneuse). */
+    onOpen: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     val currentThreshold by rememberUpdatedState(onThresholdCrossed)
@@ -99,6 +102,9 @@ fun SwipeCard(
             )
         }
     } else Modifier
+    // Un simple toucher (sans glisser) ouvre le fichier
+    val currentOpen by rememberUpdatedState(onOpen)
+    val tap = if (state != null) Modifier.pointerInput(item.id) { detectTapGestures(onTap = { currentOpen() }) } else Modifier
 
     // Lecture en composition : change rarement
     val dragDir = state?.dominantDirection
@@ -106,6 +112,7 @@ fun SwipeCard(
     Box(
         modifier = modifier
             .then(gestures)
+            .then(tap)
             .graphicsLayer {
                 if (state != null) {
                     translationX = state.offset.value.x
@@ -162,7 +169,7 @@ private fun CardInfo(item: FileItem) {
             maxLines = 2, overflow = TextOverflow.Ellipsis,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Chip(item.category.label, categoryColor)
+            Chip(item.suggestedLabel ?: item.category.label, categoryColor)
             if (item.isDuplicate) Chip("DOUBLON", Neon.Red)
             item.matchedKeyword?.let { Chip("#$it", Neon.Cyan) }
         }

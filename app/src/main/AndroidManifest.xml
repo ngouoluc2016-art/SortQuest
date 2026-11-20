@@ -67,6 +67,17 @@
             </intent-filter>
         </activity>
 
+        <!-- Partage sécurisé des fichiers vers d'autres applis ("Ouvrir avec", "Partager") -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <!-- WorkManager initialisé à la demande avec la HiltWorkerFactory (voir SortQuestApp) -->
         <provider
             android:name="androidx.startup.InitializationProvider"

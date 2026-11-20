@@ -23,6 +23,7 @@ import androidx.compose.material.icons.rounded.CleaningServices
 import androidx.compose.material.icons.rounded.DeleteSweep
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Verified
+import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -58,6 +59,7 @@ import com.sortquest.app.domain.model.DuplicateGroup
 import com.sortquest.app.domain.model.FileItem
 import com.sortquest.app.ui.components.EmptyState
 import com.sortquest.app.ui.components.FileKindIcon
+import com.sortquest.app.ui.components.FileThumbnail
 import com.sortquest.app.ui.components.ScanStatusBanner
 import com.sortquest.app.ui.components.ShimmerList
 import com.sortquest.app.ui.components.readableParent
@@ -68,7 +70,7 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-fun CleanScreen(viewModel: CleanViewModel = hiltViewModel()) {
+fun CleanScreen(onOpenFile: (String) -> Unit = {}, viewModel: CleanViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val formatBytes = rememberBytesFormatter()
@@ -114,13 +116,14 @@ fun CleanScreen(viewModel: CleanViewModel = hiltViewModel()) {
                     !state.isLoaded || (state.scan != null && state.groups.isEmpty() && state.largest.isEmpty()) ->
                         Box(Modifier.padding(16.dp)) { ShimmerList(count = 5, itemHeight = 84.dp) }
                     tab == 0 -> DuplicatesTab(
+                        onOpenFile = onOpenFile,
                         state = state,
                         formatBytes = formatBytes,
                         onKeep = viewModel::setKeep,
                         onTrashGroup = viewModel::trashCopies,
                         onTrashAll = { confirmAll = true },
                     )
-                    else -> LargestTab(state.largest, state.busy, formatBytes, viewModel::trashFile)
+                    else -> LargestTab(state.largest, state.busy, formatBytes, viewModel::trashFile, onOpenFile)
                 }
             }
         }
@@ -153,6 +156,7 @@ private fun DuplicatesTab(
     onKeep: (DuplicateGroup, Long) -> Unit,
     onTrashGroup: (DuplicateGroup) -> Unit,
     onTrashAll: () -> Unit,
+    onOpenFile: (String) -> Unit,
 ) {
     if (state.groups.isEmpty()) {
         EmptyState(Icons.Rounded.Verified, "Aucun doublon", "Ton stockage ne contient aucune copie identique connue.")
@@ -176,7 +180,7 @@ private fun DuplicatesTab(
             }
         }
         items(state.groups, key = { it.hash }) { group ->
-            DuplicateGroupCard(group, state.keptId(group), state.busy, formatBytes, onKeep, onTrashGroup, Modifier.animateItem())
+            DuplicateGroupCard(group, state.keptId(group), state.busy, formatBytes, onKeep, onTrashGroup, onOpenFile, Modifier.animateItem())
         }
     }
 }
@@ -189,6 +193,7 @@ private fun DuplicateGroupCard(
     formatBytes: (Long) -> String,
     onKeep: (DuplicateGroup, Long) -> Unit,
     onTrash: (DuplicateGroup) -> Unit,
+    onOpenFile: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -216,6 +221,8 @@ private fun DuplicateGroupCard(
                     onClick = { onKeep(group, file.id) },
                     colors = RadioButtonDefaults.colors(selectedColor = Neon.Lime),
                 )
+                FileThumbnail(file.path, file.kind, file.lastModified, file.extension, size = 40.dp)
+                Spacer(Modifier.size(8.dp))
                 Column(Modifier.weight(1f)) {
                     Text(file.path.readableParent(), style = MaterialTheme.typography.bodyMedium,
                         color = Neon.TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -224,6 +231,10 @@ private fun DuplicateGroupCard(
                         style = MaterialTheme.typography.labelSmall, color = Neon.TextMuted,
                         maxLines = 1, overflow = TextOverflow.Ellipsis,
                     )
+                }
+                // Consulter chaque exemplaire avant de choisir
+                IconButton(onClick = { onOpenFile(file.path) }) {
+                    Icon(Icons.Rounded.Visibility, "Voir ${file.name}", tint = Neon.Cyan)
                 }
             }
         }
@@ -239,6 +250,7 @@ private fun LargestTab(
     busy: Boolean,
     formatBytes: (Long) -> String,
     onTrash: (FileItem) -> Unit,
+    onOpenFile: (String) -> Unit,
 ) {
     if (files.isEmpty()) {
         EmptyState(Icons.Rounded.Verified, "Aucun fichier de plus de 50 Mo", "Rien de lourd à signaler.")
@@ -251,11 +263,12 @@ private fun LargestTab(
         }
         items(files, key = { it.id }) { file ->
             Column(
-                Modifier.animateItem().fillMaxWidth().background(Neon.Surface, RoundedCornerShape(16.dp)).padding(12.dp),
+                Modifier.animateItem().fillMaxWidth().background(Neon.Surface, RoundedCornerShape(16.dp))
+                    .clickable { onOpenFile(file.path) }.padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    FileKindIcon(file.extension)
+                    FileThumbnail(file.path, file.kind, file.lastModified, file.extension, size = 48.dp)
                     Spacer(Modifier.size(10.dp))
                     Column(Modifier.weight(1f)) {
                         Text(file.name, style = MaterialTheme.typography.bodyMedium, color = Neon.TextPrimary,

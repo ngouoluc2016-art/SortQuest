@@ -1,6 +1,7 @@
 package com.sortquest.app.ui.rules
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -90,7 +91,7 @@ class HistoryViewModel @Inject constructor(
 }
 
 @Composable
-fun HistoryScreen(snackbar: SnackbarHostState, viewModel: HistoryViewModel = hiltViewModel()) {
+fun HistoryScreen(snackbar: SnackbarHostState, onOpenFile: (String) -> Unit = {}, viewModel: HistoryViewModel = hiltViewModel()) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     LaunchedEffect(viewModel) { viewModel.messages.collect { snackbar.showSnackbar(it) } }
 
@@ -105,7 +106,13 @@ fun HistoryScreen(snackbar: SnackbarHostState, viewModel: HistoryViewModel = hil
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(state.entries, key = { it.record.id }) { entry ->
-                    HistoryRow(entry, canUndo = !entry.undone && now - entry.record.timestamp < UNDO_WINDOW_MS, onUndo = { viewModel.undo(entry) })
+                    HistoryRow(
+                        entry,
+                        canUndo = !entry.undone && now - entry.record.timestamp < UNDO_WINDOW_MS,
+                        onUndo = { viewModel.undo(entry) },
+                        // Consulter le fichier là où il est MAINTENANT (destination, ou origine si annulé)
+                        onOpen = { onOpenFile(if (entry.undone) entry.record.fromPath else entry.record.toPath ?: entry.record.fromPath) },
+                    )
                 }
             }
         }
@@ -113,11 +120,11 @@ fun HistoryScreen(snackbar: SnackbarHostState, viewModel: HistoryViewModel = hil
 }
 
 @Composable
-private fun HistoryRow(entry: HistoryEntry, canUndo: Boolean, onUndo: () -> Unit) {
+private fun HistoryRow(entry: HistoryEntry, canUndo: Boolean, onUndo: () -> Unit, onOpen: () -> Unit) {
     val r = entry.record
     val (icon, color, verb) = actionVisual(r.action)
     Row(
-        Modifier.fillMaxWidth().background(Neon.Surface, RoundedCornerShape(14.dp)).padding(12.dp)
+        Modifier.fillMaxWidth().background(Neon.Surface, RoundedCornerShape(14.dp)).clickable(onClick = onOpen).padding(12.dp)
             .alpha(if (entry.undone) 0.45f else 1f),
         verticalAlignment = Alignment.CenterVertically,
     ) {

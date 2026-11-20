@@ -36,7 +36,9 @@ enum class ThumbnailType { PDF, VIDEO }
 data class LocalThumbnail(val path: String, val lastModified: Long, val type: ThumbnailType)
 
 /** Modèle à passer à Coil pour l'aperçu d'un fichier (null = pas d'aperçu image). */
-fun FileItem.thumbnailModel(): Any? = when (kind) {
+fun FileItem.thumbnailModel(): Any? = thumbnailModelFor(path, kind, lastModified)
+
+fun thumbnailModelFor(path: String, kind: FileKind, lastModified: Long): Any? = when (kind) {
     FileKind.IMAGE -> File(path)                                         // décodage direct, sous-échantillonné
     FileKind.VIDEO -> LocalThumbnail(path, lastModified, ThumbnailType.VIDEO)
     FileKind.PDF -> LocalThumbnail(path, lastModified, ThumbnailType.PDF)

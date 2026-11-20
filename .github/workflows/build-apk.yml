@@ -61,11 +61,13 @@ jobs:
       - name: Construire les APK (debug + release optimisé)
         run: ./gradlew assembleDebug assembleRelease --stacktrace
 
-      - name: Renommer les APK
+      - name: Renommer les APK (d'après versionName)
         run: |
+          VERSION=$(grep -oP 'versionName = "\K[^"]+' app/build.gradle.kts)
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
           mkdir -p dist
-          cp app/build/outputs/apk/release/app-release.apk dist/SortQuest-1.0.0.apk
-          cp app/build/outputs/apk/debug/app-debug.apk dist/SortQuest-1.0.0-debug.apk
+          cp app/build/outputs/apk/release/app-release.apk "dist/SortQuest-$VERSION.apk"
+          cp app/build/outputs/apk/debug/app-debug.apk "dist/SortQuest-$VERSION-debug.apk"
           ls -la dist
 
       - name: Publier les APK
@@ -94,17 +96,17 @@ jobs:
           if-no-files-found: ignore
 
       # Release GitHub : page de téléchargement directe (ouvrable depuis le téléphone)
-      - name: Publier la Release v1.0.0
+      - name: Publier la Release de cette version
         if: github.event_name != 'pull_request'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.0
-          name: SortQuest 1.0.0
+          tag_name: v${{ env.VERSION }}
+          name: SortQuest ${{ env.VERSION }}
           target_commitish: ${{ github.sha }}
           files: dist/*.apk
           body: |
-            **Installer :** télécharger `SortQuest-1.0.0.apk`, l'ouvrir sur le téléphone, autoriser l'installation depuis cette source.
-            Android 8.0 minimum. `SortQuest-1.0.0-debug.apk` = version de diagnostic.
+            **Installer :** télécharger `SortQuest-${{ env.VERSION }}.apk`, l'ouvrir sur le téléphone, autoriser l'installation depuis cette source.
+            Android 8.0 minimum. Le fichier `-debug` est une version de diagnostic.
 
       # Copie des APK sur la branche "apk" (récupérable avec git, sans passer par le stockage des artefacts)
       - name: Publier les APK sur la branche apk

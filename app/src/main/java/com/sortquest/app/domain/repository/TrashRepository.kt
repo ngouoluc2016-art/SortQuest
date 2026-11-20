@@ -19,4 +19,10 @@ interface TrashRepository {
 
     /** Suppression définitive des éléments de plus de 7 jours (TrashCleanupWorker). */
     suspend fun purgeExpired(): PurgeResult
+
+    /**
+     * Fichiers présents dans le dossier corbeille mais inconnus de la base (ex. réinstallation
+     * de l'appli) : ils redeviennent visibles et restaurables, avec un nouveau délai de 7 jours.
+     */
+    suspend fun adoptOrphans(): Int
 }

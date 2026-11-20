@@ -89,6 +89,7 @@ import kotlinx.coroutines.launch
 fun SwipeSortScreen(
     onOpenRules: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenFile: (String) -> Unit = {},
     viewModel: SwipeSortViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -196,7 +197,7 @@ fun SwipeSortScreen(
                 fun release(item: FileItem, direction: SwipeDirection) {
                     haptics.forRelease(direction)
                     if (direction == SwipeDirection.RIGHT || direction == SwipeDirection.UP) {
-                        flight = Flight(direction, item.suggestedTargetDir.substringAfterLast('/'))
+                        flight = Flight(direction, item.suggestedLabel ?: item.suggestedTargetDir.substringAfterLast('/'))
                     }
                 }
                 fun landed(item: FileItem, direction: SwipeDirection) {
@@ -213,6 +214,7 @@ fun SwipeSortScreen(
                         haptics = haptics,
                         onRelease = ::release,
                         onSwiped = ::landed,
+                        onOpen = { onOpenFile(it.path) },
                     )
                 }
 
@@ -222,7 +224,7 @@ fun SwipeSortScreen(
                     visible = hint == SwipeDirection.RIGHT || flight?.direction == SwipeDirection.RIGHT,
                     icon = Icons.Rounded.Folder,
                     label = flight?.takeIf { it.direction == SwipeDirection.RIGHT }?.label
-                        ?: top?.suggestedTargetDir?.substringAfterLast('/').orEmpty(),
+                        ?: (top?.suggestedLabel ?: top?.suggestedTargetDir?.substringAfterLast('/')).orEmpty(),
                     color = Neon.Lime,
                     pulseKey = arrivals,
                     modifier = Modifier.align(Alignment.TopEnd).padding(TARGET_PADDING),
@@ -347,6 +349,7 @@ private fun CardStack(
     haptics: SortHaptics,
     onRelease: (FileItem, SwipeDirection) -> Unit,
     onSwiped: (FileItem, SwipeDirection) -> Unit,
+    onOpen: (FileItem) -> Unit,
 ) {
     val visible = deck.take(VISIBLE_CARDS)
     Box(Modifier.fillMaxSize().padding(bottom = ACTION_BAR_SPACE), contentAlignment = Alignment.TopCenter) {
@@ -360,6 +363,7 @@ private fun CardStack(
                         state = topState,
                         onThresholdCrossed = haptics::tick,
                         onRelease = { direction -> onRelease(item, direction) },
+                        onOpen = { onOpen(item) },
                         onSwiped = { direction -> onSwiped(item, direction) },
                         modifier = Modifier.fillMaxSize(),
                     )

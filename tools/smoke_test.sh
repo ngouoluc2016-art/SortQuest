@@ -1,88 +1,114 @@
 #!/usr/bin/env bash
-# Test de fumée sur émulateur : installe l'APK release (minifié R8), joue un parcours utilisateur
-# réel et échoue si l'application plante. Produit des captures d'écran et le journal système.
+# Test de l'APK release sur émulateur : mise à jour depuis la 1.0.0 (si fournie), puis parcours
+# complet des fonctions d'organisation et de consultation. Échoue si l'application plante.
+#   $1 = APK à tester    $2 = APK de l'ancienne version (facultatif, pour le test de mise à jour)
 set -u
 PKG=com.sortquest.app
 APK=${1:-app/build/outputs/apk/release/app-release.apk}
+OLD_APK=${2:-}
 OUT=smoke-out
 mkdir -p "$OUT"
+MISSING=0
 
 read -r W H < <(adb shell wm size | grep -oE '[0-9]+x[0-9]+' | tail -1 | tr 'x' ' ')
 DENSITY=$(adb shell wm density | grep -oE '[0-9]+' | tail -1)
 dp() { echo $(( $1 * DENSITY / 160 )); }
 shot() { sleep "${2:-2}"; adb exec-out screencap -p > "$OUT/$1.png"; echo "capture $1"; }
 step() { echo; echo "=== $*"; }
+back() { adb shell input keyevent KEYCODE_BACK; sleep 1.5; }
+NAV_Y=$((H - $(dp 56)))
+tab() { adb shell input tap $(( W * (2 * $1 + 1) / 8 )) "$NAV_Y"; }   # 0 Organiser, 1 Trier, 2 Optimiser, 3 Auto-Pilot
+
+# Touche un élément par son texte (arbre d'accessibilité), 3 essais
+tap_text() {
+  local mode=${2:-exact}
+  for _ in 1 2 3; do
+    if adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1 && adb pull /sdcard/ui.xml /tmp/ui.xml > /dev/null 2>&1; then
+      if coords=$(python3 tools/find_node.py /tmp/ui.xml "$1" "$mode"); then
+        adb shell input tap $coords; echo "toucher « $1 » -> $coords"; return 0
+      fi
+    fi
+    sleep 2
+  done
+  echo "ÉLÉMENT INTROUVABLE : « $1 »"; MISSING=$((MISSING + 1)); return 1
+}
+grant() { adb shell appops set --uid "$PKG" MANAGE_EXTERNAL_STORAGE allow; }
+launch() { adb shell am start -W -n "$PKG/.MainActivity" > /dev/null; }
+
 echo "Écran ${W}x${H}, densité ${DENSITY}"
-
-step "Installation de l'APK release"
-adb install -r "$APK" || exit 1
-
-step "Dépôt de fichiers de test dans Download"
 for f in tools/fixtures/*; do adb push "$f" "/sdcard/Download/" > /dev/null; done
-adb shell ls -la /sdcard/Download/
-
 adb logcat -c
 
-step "1er lancement : onboarding"
-adb shell am start -W -n "$PKG/.MainActivity"
-shot 01-onboarding-swipe 5
-adb shell input swipe $((W * 85 / 100)) $((H / 2)) $((W * 15 / 100)) $((H / 2)) 300   # page suivante
-shot 02-onboarding-confidentialite
-adb shell input swipe $((W * 85 / 100)) $((H / 2)) $((W * 15 / 100)) $((H / 2)) 300
-shot 03-onboarding-permission
+if [ -n "$OLD_APK" ] && [ -f "$OLD_APK" ]; then
+  step "Version 1.0.0 : installation et utilisation (crée une base au schéma v3)"
+  adb install "$OLD_APK" || exit 1
+  grant; launch
+  shot 00-v100-tri 20
+  CY=$((H * 60 / 100))
+  adb shell input swipe $((W / 2)) "$CY" $((W * 95 / 100)) "$CY" 220   # un fichier classé => historique
+  sleep 3
+  adb shell input tap $((W / 2)) $((H * 8 / 100)); sleep 1               # ferme une éventuelle félicitation
+  shot 01-v100-apres-tri 2
+  step "MISE À JOUR vers la nouvelle version (migration de base v3 -> v4)"
+  adb install -r "$APK" || { echo "ÉCHEC DE LA MISE À JOUR (signature ?)" | tee "$OUT/resultat.txt"; exit 4; }
+  launch
+  shot 02-v110-premier-lancement 15
+else
+  step "Installation neuve + accès accordé"
+  adb install -r "$APK" || exit 1
+  grant; launch
+  shot 02-v110-premier-lancement 15
+fi
 
-step "Accès à tous les fichiers accordé (équivalent du réglage système)"
-adb shell appops set --uid "$PKG" MANAGE_EXTERNAL_STORAGE allow
-adb shell input keyevent KEYCODE_HOME
-sleep 1
-adb shell am start -W -n "$PKG/.MainActivity"   # retour : ON_RESUME détecte l'accès et ouvre l'écran de tri
-shot 04-tri-scan-en-cours 4
-shot 05-tri-cartes 20                              # laisse le scan + la recherche de doublons se terminer
+step "Organiser : relance d'une analyse pour indexer tous les fichiers de test"
+tap_text "Analyser le stockage" || true
+shot 03-organiser 20
 
-# Ferme une éventuelle fenêtre de félicitations en touchant en dehors de sa carte.
-# Sans fenêtre ouverte, ce point tombe sur une zone inerte du tableau de bord : aucun effet.
-close_dialog() { adb shell input tap $((W / 2)) $((H * 8 / 100)); sleep 1; }
+step "Consulter un fichier AVANT déplacement (PDF multipage)"
+tap_text "Facture_EDF_octobre_2026.pdf" && { shot 04-visionneuse-pdf-avant 4; back; }
 
-step "Swipe à droite (classer)"
-CY=$((H * 60 / 100))
-adb shell input swipe $((W / 2)) "$CY" $((W * 95 / 100)) "$CY" 220
-shot 06-apres-classement 3
-close_dialog
-step "Swipe à gauche (corbeille)"
-adb shell input swipe $((W / 2)) "$CY" $((W * 5 / 100)) "$CY" 220
-shot 07-apres-corbeille 3
-close_dialog
-step "Swipe vers le haut (coffre-fort)"
-adb shell input swipe $((W / 2)) "$CY" $((W / 2)) $((H * 20 / 100)) 220
-shot 07b-apres-coffre 3
-close_dialog
+step "Choisir une réorganisation"
+tap_text "Réorganisation" && { shot 05-choix-reorganisation 2; back; }
 
-step "Navigation dans les onglets (barre inférieure)"
-NAV_Y=$((H - $(dp 56)))
-tab() { adb shell input tap $(( W * (2 * $1 + 1) / 8 )) "$NAV_Y"; }
-tab 1; shot 08-onglet-nettoyer 6
-tab 2; shot 09-onglet-autopilot 3
-tab 3; shot 10-onglet-corbeille 3
-tab 0; shot 11-retour-tri 3
+step "Gamme de dossiers thématiques"
+tap_text "Dossiers" && { shot 06-dossiers-thematiques 3; back; }
 
-step "Rotation (recréation de l'activité : fuite ou perte d'état ?)"
-adb shell settings put system accelerometer_rotation 0
-adb shell settings put system user_rotation 1
-shot 12-paysage 4
-adb shell settings put system user_rotation 0
-shot 13-portrait 3
+step "Tout ranger (plan visuel puis confirmation)"
+tap_text "Tout ranger" prefix && { shot 07-confirmation-plan 2; tap_text "Ranger"; shot 08-apres-rangement 4; }
 
-step "Vérification de l'état des fichiers sur le disque"
-adb shell "echo '--- Download'; ls /sdcard/Download/; echo '--- Rangés / coffre / corbeille'; find /sdcard/Documents/SortQuest /sdcard/.SortQuest_Trash -type f 2>/dev/null" | tee "$OUT/fichiers.txt"
+step "Rangés : parcourir les dossiers puis consulter un fichier APRÈS déplacement"
+tap_text "Rangés"; shot 09-ranges 4
+if tap_text "Administratif"; then
+  shot 10-dossier-administratif 3
+  if tap_text "Factures"; then
+    shot 11-dossier-factures 3
+    tap_text "Facture_EDF_octobre_2026.pdf" && { shot 12-visionneuse-pdf-apres 4; back; }
+    back
+  fi
+  back
+fi
+
+step "Autres onglets"
+tab 1; shot 13-trier 4
+tab 2; shot 14-optimiser 5
+tab 3; shot 15-autopilot 3
+tap_text "Historique" && shot 16-historique 3
+tab 0; shot 17-retour-organiser 3
+
+step "État des fichiers sur le disque"
+adb shell "echo '--- Download'; ls /sdcard/Download/; echo '--- Rangés'; find /sdcard/Documents/SortQuest -type f; echo '--- Corbeille'; ls /sdcard/.SortQuest_Trash/ 2>/dev/null" | tee "$OUT/fichiers.txt"
 
 step "Analyse du journal"
 adb logcat -d > "$OUT/logcat.txt"
 adb logcat -d -s AndroidRuntime:E > "$OUT/crash.txt"
 PID_ALIVE=$(adb shell pidof "$PKG" || true)
-echo "Processus vivant : ${PID_ALIVE:-NON}" | tee "$OUT/resultat.txt"
+{
+  echo "Processus vivant : ${PID_ALIVE:-NON}"
+  echo "Éléments introuvables : $MISSING"
+} | tee "$OUT/resultat.txt"
 if grep -q "FATAL EXCEPTION" "$OUT/crash.txt" && grep -q "$PKG" "$OUT/crash.txt"; then
   echo "CRASH détecté :" | tee -a "$OUT/resultat.txt"
-  grep -A 30 "FATAL EXCEPTION" "$OUT/crash.txt" | tee -a "$OUT/resultat.txt"
+  grep -A 40 "FATAL EXCEPTION" "$OUT/crash.txt" | tee -a "$OUT/resultat.txt"
   exit 2
 fi
 if [ -z "$PID_ALIVE" ]; then echo "L'application n'est plus en cours d'exécution" | tee -a "$OUT/resultat.txt"; exit 3; fi

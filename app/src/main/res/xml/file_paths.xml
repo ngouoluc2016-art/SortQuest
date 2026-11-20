@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Fichiers que SortQuest peut confier à une autre appli ("Ouvrir avec", "Partager").
+  Accès accordé fichier par fichier, en lecture seule, et uniquement à l'appli choisie.
+-->
+<paths>
+    <external-path name="stockage" path="." />
+</paths>

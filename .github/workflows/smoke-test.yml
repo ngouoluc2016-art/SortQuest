@@ -25,8 +25,18 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Construire l'APK release
+      - name: Construire l'APK release (version testée)
         run: ./gradlew assembleRelease --stacktrace
+
+      # Test de mise à jour : la 1.0.0 est recompilée sur la même machine, donc avec la même clé.
+      - name: Récupérer le code de la 1.0.0
+        uses: actions/checkout@v4
+        with:
+          ref: 27036eb7ebc1c3e55bd8408365d70a26df016dba
+          path: old
+
+      - name: Construire la 1.0.0
+        run: cd old && ./gradlew assembleRelease --stacktrace
 
       - name: Activer KVM (accélération de l'émulateur)
         run: |
@@ -43,7 +53,7 @@ jobs:
           profile: pixel_6
           disable-animations: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: bash tools/smoke_test.sh
+          script: bash tools/smoke_test.sh app/build/outputs/apk/release/app-release.apk old/app/build/outputs/apk/release/app-release.apk
 
       - name: Publier les résultats sur la branche smoke
         if: always()
@@ -52,6 +62,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           cp -r smoke-out /tmp/smoke-out
+          rm -rf old
           git checkout --orphan smoke
           git rm -rq --cached . && git clean -fdxq
           cp -r /tmp/smoke-out/. .
