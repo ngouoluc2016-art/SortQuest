@@ -32,11 +32,19 @@ tap_text() {
   done
   echo "ÉLÉMENT INTROUVABLE : « $1 »"; MISSING=$((MISSING + 1)); return 1
 }
+# Ferme les fenêtres de félicitation éventuelles (non compté comme échec)
+dismiss() {
+  for _ in 1 2 3; do
+    adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1 && adb pull /sdcard/ui.xml /tmp/ui.xml > /dev/null 2>&1 || return 0
+    coords=$(python3 tools/find_node.py /tmp/ui.xml "Continuer") || return 0
+    adb shell input tap $coords; echo "fenêtre fermée"; sleep 1.5
+  done
+}
 grant() { adb shell appops set --uid "$PKG" MANAGE_EXTERNAL_STORAGE allow; }
 launch() { adb shell am start -W -n "$PKG/.MainActivity" > /dev/null; }
 
 echo "Écran ${W}x${H}, densité ${DENSITY}"
-for f in tools/fixtures/*; do adb push "$f" "/sdcard/Download/" > /dev/null; done
+for f in tools/fixtures/* tools/fixtures/.[!.]*; do adb push "$f" "/sdcard/Download/" > /dev/null; done
 adb logcat -c
 
 if [ -n "$OLD_APK" ] && [ -f "$OLD_APK" ]; then
@@ -60,9 +68,16 @@ else
   shot 02-v110-premier-lancement 15
 fi
 
+dismiss
 step "Organiser : relance d'une analyse pour indexer tous les fichiers de test"
 tap_text "Analyser le stockage" || true
 shot 03-organiser 20
+dismiss
+step "Fichiers cachés / protégés : ne doivent PAS apparaître"
+adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1; adb pull /sdcard/ui.xml /tmp/ui.xml > /dev/null 2>&1
+for hidden in ".releve_secret.pdf" "cache_appli.db"; do
+  if python3 tools/find_node.py /tmp/ui.xml "$hidden" > /dev/null; then echo "ERREUR : $hidden affiché"; MISSING=$((MISSING + 1)); else echo "OK : $hidden masqué"; fi
+done
 
 step "Consulter un fichier AVANT déplacement (PDF multipage)"
 tap_text "Facture_EDF_octobre_2026.pdf" && { shot 04-visionneuse-pdf-avant 4; back; }
@@ -74,7 +89,7 @@ step "Gamme de dossiers thématiques"
 tap_text "Dossiers" && { shot 06-dossiers-thematiques 3; back; }
 
 step "Tout ranger (plan visuel puis confirmation)"
-tap_text "Tout ranger" prefix && { shot 07-confirmation-plan 2; tap_text "Ranger"; shot 08-apres-rangement 4; }
+tap_text "Tout ranger" prefix && { shot 07-confirmation-plan 2; tap_text "Ranger"; shot 08-apres-rangement 4; dismiss; }
 
 step "Rangés : parcourir les dossiers puis consulter un fichier APRÈS déplacement"
 tap_text "Rangés"; shot 09-ranges 4
@@ -96,7 +111,7 @@ tap_text "Historique" && shot 16-historique 3
 tab 0; shot 17-retour-organiser 3
 
 step "État des fichiers sur le disque"
-adb shell "echo '--- Download'; ls /sdcard/Download/; echo '--- Rangés'; find /sdcard/Documents/SortQuest -type f; echo '--- Corbeille'; ls /sdcard/.SortQuest_Trash/ 2>/dev/null" | tee "$OUT/fichiers.txt"
+adb shell "echo '--- Download'; ls -a /sdcard/Download/; echo '--- Rangés'; find /sdcard/Documents/SortQuest -type f; echo '--- Corbeille'; ls /sdcard/.SortQuest_Trash/ 2>/dev/null" | tee "$OUT/fichiers.txt"
 
 step "Analyse du journal"
 adb logcat -d > "$OUT/logcat.txt"
